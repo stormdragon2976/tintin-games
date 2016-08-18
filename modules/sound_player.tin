@@ -1,0 +1,175 @@
+#ALIAS {^news$}
+{
+	#if {$motdStatus != 200 && $motdStatus != 404}
+	{
+		#script {motd} {curl -I "$MOTDURL"};
+		#regexp {${motd[1]}} {HTTP/1.1 {.*} {.*}} {#variable {motdStatus} {&1}}
+	};
+	#if {$motdStatus == 200}
+	{
+		#system {play -qV0 "$MOTDURL" gain $volume &> /dev/null &}
+	};
+	#else
+	{
+		#echo {There is no news currently.}
+	}
+}
+{9}
+
+#ALIAS {^synth_play %1}
+{
+	#if {&{%1}}
+	{
+		#system {play -qV0 $%1 gain $volume&}
+	}
+}
+{9}
+
+#ALIAS {pan_play %S}
+{
+	#if {!&{play_%1}}
+	{
+		#variable {play_%1} {false};
+		#script {soundFileName} {$shuf -n 1 -e sounds/%1*opus};
+		#math {lChannel} {1d9};
+		#if {$lChannel < 5}
+		{
+			#math {rChannel} {1d5+4}
+		};
+		#else
+		{
+			#math {rChannel} {1d9}
+		};
+		#variable {soundFileName} {${soundFileName[1]}};
+		#system {play -qV0 "$soundFileName" gain $volume remix v0.$lChannel v0.$rChannel &> /dev/null &};
+		#script {i} {soxi "$soundFileName" | grep Duration | cut -d ':' -f2- | cut -d '=' -f1 | tr -d "[:space:]"};
+		#variable {i} {${i[1]}};
+		#delay {$i}  {#unvariable {play_%1}}
+	}
+}
+{9}
+
+#ALIAS {play %S %S$}
+{
+	#system {play -qV0 "sounds/%1.opus" "sounds/%2.opus" gain $volume &> /dev/null &}
+}
+{9}
+
+#ALIAS {play_norandom %S}
+{
+	#system {play -qV0 "sounds/%1.opus" gain $volume &> /dev/null &}
+}
+{9}
+
+#ALIAS {seq_{play|play_norandom} %S}
+{
+	#if {!&{play_%1}}
+	{
+		#variable {play_%1} {false};
+		#if {"%1" == "play"}
+		{
+			#script {soundFileName} {$shuf -n 1 -e sounds/%2*opus};
+			#variable {soundFileName} {${soundFileName[1]}}
+		};
+		#else
+		{
+			#variable {soundFileName} {sounds/%2.opus}
+		};
+		#system {play -qV0 "$soundFileName" gain $volume &> /dev/null &};
+		#script {i} {soxi "$soundFileName" | grep Duration | cut -d ':' -f2- | cut -d '=' -f1 | tr -d "[:space:]"};
+		#variable {i} {${i[1]}};
+		#delay {$i}  {#unvariable {play_%1}}
+	}
+}
+{9}
+
+#ALIAS {{lplay|rplay|revplay|play} %S}
+{
+	#if {"%1" == "lplay"}
+	{
+		#variable {lChannel} {v0.9};
+		#variable {rChannel} {v0.4};
+		#system {play -qV0 "$($shuf -n 1 -e sounds/%2*opus)" remix $lChannel $rChannel gain $volume &}
+	};
+	#elseif {"%1" == "rplay"}
+	{
+		#variable {lChannel} {v0.4};
+		#variable {rChannel} {v0.9};
+		#system {play -qV0 "$($shuf -n 1 -e sounds/%2*opus)" remix $lChannel $rChannel gain $volume &}
+	};
+	#elseif {"%1" == "revplay"}
+	{
+		#system {play -qV0 "$($shuf -n 1 -e sounds/%2*opus)" reverse gain $volume &}
+	};
+	#else
+	{
+		#system {play -qV0 "$($shuf -n 1 -e sounds/%2*opus)" gain $volume &}
+	}
+}
+{9}
+
+#CONFIG           {256 COLORS}  {ON}
+#CONFIG           {AUTO TAB}  {5000}
+#CONFIG           {BUFFER SIZE}  {20000}
+#CONFIG           {CHARSET}  {ASCII}
+#CONFIG           {COLOR PATCH}  {OFF}
+#CONFIG           {COMMAND COLOR}  {<078>}
+#CONFIG           {COMMAND ECHO}  {ON}
+#CONFIG           {CONNECT RETRY}  {15}
+#CONFIG           {HISTORY SIZE}  {1000}
+#CONFIG           {LOG}  {RAW}
+#CONFIG           {PACKET PATCH}  {0.00}
+#CONFIG           {REPEAT CHAR}  {!}
+#CONFIG           {REPEAT ENTER}  {OFF}
+#CONFIG           {SCROLL LOCK}  {ON}
+#CONFIG           {SPEEDWALK}  {OFF}
+#CONFIG           {TINTIN CHAR}  {#}
+#CONFIG           {VERBATIM}  {OFF}
+#CONFIG           {VERBATIM CHAR}  {\}
+#CONFIG           {VERBOSE}  {OFF}
+#CONFIG           {WORDWRAP}  {ON}
+#MACRO {\e[18~}
+{
+	#if {$volume <= -40}
+	{
+		#variable {volume} {-40}
+	};
+	#else
+	{
+		#math {volume} {$volume - 2}
+	};
+	synth_play newVolumeSound;
+	#if {"$bgm" == "true"}
+	{
+		#delay {restartTileAmbiance}{nobgm;bgm}{0.25}
+	}
+}
+
+#MACRO {\e[19~}
+{
+	#if {$volume >= 0}
+	{
+		#variable {volume} {0}
+	};
+	#else
+	{
+		#math {volume} {$volume + 2}
+	};
+	synth_play newVolumeSound;
+	#if {"$bgm" == "true"}
+	{
+		#delay {restartTileAmbiance}{nobgm;bgm}{0.25}
+	}
+}
+
+#PATHDIR          {d}  {u}  {32}
+#PATHDIR          {e}  {w}  {2}
+#PATHDIR          {n}  {s}  {1}
+#PATHDIR          {ne}  {sw}  {3}
+#PATHDIR          {nw}  {se}  {9}
+#PATHDIR          {s}  {n}  {4}
+#PATHDIR          {se}  {nw}  {6}
+#PATHDIR          {sw}  {ne}  {12}
+#PATHDIR          {u}  {d}  {16}
+#PATHDIR          {w}  {e}  {8}
+#VARIABLE         {volume}  {0}
